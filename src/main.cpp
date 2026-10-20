@@ -1,7 +1,8 @@
+#include "console.h"
+
 #include <iostream>
 
 int main()
 {
-    std::cout << "calc-cli: project scaffold. Expression evaluation is not implemented yet.\n";
-    return 0;
+    return calc::run_console(std::cin, std::cout, std::cerr);
 }
