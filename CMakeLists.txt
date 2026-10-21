@@ -22,6 +22,9 @@ else()
     add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
+add_library(calc_plugin_api INTERFACE)
+target_include_directories(calc_plugin_api INTERFACE "${PROJECT_SOURCE_DIR}/include")
+
 add_subdirectory(src)
 add_subdirectory(plugins)
 
