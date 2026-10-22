@@ -17,7 +17,8 @@
 
 #ifdef __cplusplus
 #define CALC_PLUGIN_NOEXCEPT noexcept
-extern "C" {
+extern "C"
+{
 #else
 #define CALC_PLUGIN_NOEXCEPT
 #endif
@@ -27,7 +28,7 @@ extern "C" {
 #define CALC_PLUGIN_NAME_CAPACITY 64u
 #define CALC_PLUGIN_MAX_ARGUMENTS 16u
 
-typedef uint32_t CalcPluginStatus;
+    typedef uint32_t CalcPluginStatus;
 #define CALC_PLUGIN_OK 0u
 #define CALC_PLUGIN_INVALID_ARGUMENT 1u
 #define CALC_PLUGIN_DOMAIN_ERROR 2u
@@ -41,31 +42,31 @@ typedef uint32_t CalcPluginStatus;
 #define CALC_PLUGIN_ASSOC_LEFT 1u
 #define CALC_PLUGIN_ASSOC_RIGHT 2u
 
-typedef CalcPluginStatus(CALC_PLUGIN_CALL* CalcPluginInvoke)(
-    const double* arguments, uint32_t argument_count, double* result,
-    char* error_message, uint32_t error_capacity) CALC_PLUGIN_NOEXCEPT;
+    typedef CalcPluginStatus(CALC_PLUGIN_CALL* CalcPluginInvoke)(
+        const double* arguments, uint32_t argument_count, double* result, char* error_message,
+        uint32_t error_capacity) CALC_PLUGIN_NOEXCEPT;
 
 #pragma pack(push, 8)
-typedef struct CalcPluginApi
-{
-    uint32_t abi_version;
-    uint32_t struct_size;
-    char name[CALC_PLUGIN_NAME_CAPACITY];
-    uint32_t kind;
-    uint32_t argument_count;
-    uint32_t precedence;
-    uint32_t associativity;
-    CalcPluginInvoke invoke;
-} CalcPluginApi;
+    typedef struct CalcPluginApi
+    {
+        uint32_t         abi_version;
+        uint32_t         struct_size;
+        char             name[CALC_PLUGIN_NAME_CAPACITY];
+        uint32_t         kind;
+        uint32_t         argument_count;
+        uint32_t         precedence;
+        uint32_t         associativity;
+        CalcPluginInvoke invoke;
+    } CalcPluginApi;
 #pragma pack(pop)
 
-typedef CalcPluginStatus(CALC_PLUGIN_CALL* CalcPluginGetApi)(
-    uint32_t requested_version, uint32_t output_size,
-    CalcPluginApi* output) CALC_PLUGIN_NOEXCEPT;
+    typedef CalcPluginStatus(CALC_PLUGIN_CALL* CalcPluginGetApi)(
+        uint32_t requested_version, uint32_t output_size,
+        CalcPluginApi* output) CALC_PLUGIN_NOEXCEPT;
 
-CALC_PLUGIN_EXPORT CalcPluginStatus CALC_PLUGIN_CALL calc_plugin_get_api(
-    uint32_t requested_version, uint32_t output_size,
-    CalcPluginApi* output) CALC_PLUGIN_NOEXCEPT;
+    CALC_PLUGIN_EXPORT CalcPluginStatus CALC_PLUGIN_CALL
+    calc_plugin_get_api(uint32_t requested_version, uint32_t output_size,
+                        CalcPluginApi* output) CALC_PLUGIN_NOEXCEPT;
 
 #ifdef __cplusplus
 }

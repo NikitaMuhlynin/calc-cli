@@ -2,7 +2,8 @@
 
 #include <iosfwd>
 
-namespace calc {
+namespace calc
+{
 
 int run_console(std::istream& input, std::ostream& output, std::ostream& errors);
 

@@ -1,6 +1,7 @@
 #include <calc/plugin_sdk.h>
 
-namespace {
+namespace
+{
 
 double identity(const double* arguments, uint32_t)
 {

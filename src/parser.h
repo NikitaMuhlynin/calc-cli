@@ -4,7 +4,8 @@
 
 #include <string_view>
 
-namespace calc {
+namespace calc
+{
 
 Expression parse(std::string_view input);
 

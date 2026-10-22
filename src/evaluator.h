@@ -2,7 +2,8 @@
 
 #include "expression.h"
 
-namespace calc {
+namespace calc
+{
 
 double evaluate(const Expression& expression);
 

@@ -3,7 +3,8 @@
 #include <cstddef>
 #include <vector>
 
-namespace calc {
+namespace calc
+{
 
 enum class Operation
 {
@@ -17,8 +18,8 @@ enum class Operation
 
 struct Instruction
 {
-    Operation operation;
-    double value;
+    Operation   operation;
+    double      value;
     std::size_t position;
 };
 
