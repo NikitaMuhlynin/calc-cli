@@ -15,7 +15,8 @@
 namespace calc
 {
 
-int run_console(std::istream& input, std::ostream& output, std::ostream& errors)
+int run_console(std::istream& input, std::ostream& output, std::ostream& errors,
+                const PluginRegistry& plugins)
 {
     int         exit_code = 0;
     std::string line;
@@ -31,7 +32,7 @@ int run_console(std::istream& input, std::ostream& output, std::ostream& errors)
         }
         try
         {
-            const auto   expression = parse(line);
+            const auto   expression = parse(line, plugins);
             const double result     = evaluate(expression);
             output << std::setprecision(std::numeric_limits<double>::max_digits10)
                    << (result == 0.0 ? 0.0 : result) << '\n';

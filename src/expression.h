@@ -1,10 +1,13 @@
 #pragma once
 
 #include <cstddef>
+#include <memory>
 #include <vector>
 
 namespace calc
 {
+
+struct PluginOperation;
 
 enum class Operation
 {
@@ -13,14 +16,16 @@ enum class Operation
     subtract,
     multiply,
     divide,
-    negate
+    negate,
+    plugin_call
 };
 
 struct Instruction
 {
-    Operation   operation;
-    double      value;
-    std::size_t position;
+    Operation                              operation;
+    double                                 value;
+    std::size_t                            position;
+    std::shared_ptr<const PluginOperation> plugin = {};
 };
 
 // Reverse Polish notation: each operator follows its operands.

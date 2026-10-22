@@ -1,0 +1,72 @@
+file(MAKE_DIRECTORY "${WORK_DIRECTORY}")
+
+function(prepare name)
+    file(MAKE_DIRECTORY "${WORK_DIRECTORY}/${name}")
+    file(COPY_FILE "${CALC_EXECUTABLE}" "${WORK_DIRECTORY}/${name}/calc.exe")
+endfunction()
+
+function(add_plugin name source destination)
+    file(MAKE_DIRECTORY "${WORK_DIRECTORY}/${name}/plugins")
+    file(COPY_FILE "${source}" "${WORK_DIRECTORY}/${name}/plugins/${destination}")
+endfunction()
+
+function(check name input expected status diagnostic)
+    file(WRITE "${WORK_DIRECTORY}/${name}/input.txt" "${input}")
+    execute_process(
+        COMMAND "${WORK_DIRECTORY}/${name}/calc.exe"
+        WORKING_DIRECTORY "${WORK_DIRECTORY}"
+        INPUT_FILE "${WORK_DIRECTORY}/${name}/input.txt"
+        OUTPUT_VARIABLE output ERROR_VARIABLE errors RESULT_VARIABLE actual_status TIMEOUT 5
+    )
+    string(REPLACE "\r\n" "\n" output "${output}")
+    set(last_errors "${errors}" PARENT_SCOPE)
+    if(NOT "${actual_status}" STREQUAL "${status}" OR NOT "${output}" STREQUAL "${expected}")
+        message(FATAL_ERROR "${name}: status=${actual_status}, output=[${output}], errors=[${errors}]")
+    endif()
+    if(diagnostic STREQUAL "")
+        if(NOT errors STREQUAL "")
+            message(FATAL_ERROR "${name}: unexpected diagnostics: ${errors}")
+        endif()
+    elseif(NOT errors MATCHES "${diagnostic}")
+        message(FATAL_ERROR "${name}: missing diagnostic [${diagnostic}]: ${errors}")
+    endif()
+endfunction()
+
+prepare(renamed)
+add_plugin(renamed "${IDENTITY_DLL}" "arbitrary.DLL")
+add_plugin(renamed "${DIFFERENCE_DLL}" "binary.dll")
+add_plugin(renamed "${PAIR_DLL}" "pair.dll")
+check(renamed "identity(3)\nidentity(identity(4))+2\n10?3?2\n2+8?3*2\n" "3\n6\n5\n12\n" 0 "")
+check(renamed "identity()\nidentity(1,2)\nidentity(1,)\nidentity(,1)\nidentity 2\n(1,2)\n2identity(1)\nunknown(1)\nidentity(2)\n" "2\n" 1 "Error:")
+check(renamed "difference(10,3)\ndifference(identity(8),3)\ndifference(10,identity(3)+1)\n" "7\n5\n6\n" 0 "")
+check(renamed "difference(1)\ndifference(1,2,3)\ndifference((1,2),3)\n" "" 1 "Error:")
+string(REPEAT "identity(" 2000 opening)
+string(REPEAT ")" 2000 closing)
+check(renamed "${opening}2${closing}\n" "2\n" 0 "")
+
+prepare(missing)
+check(missing "2+2\n" "4\n" 0 "Warning:.*plugins")
+prepare(empty)
+file(MAKE_DIRECTORY "${WORK_DIRECTORY}/empty/plugins")
+check(empty "3*3\n" "9\n" 0 "Warning:.*plugins")
+
+prepare(invalid)
+add_plugin(invalid "${IDENTITY_DLL}" "valid.dll")
+add_plugin(invalid "${NO_ENTRY_DLL}" "no_entry.dll")
+add_plugin(invalid "${BAD_METADATA_DLL}" "bad_metadata.dll")
+file(WRITE "${WORK_DIRECTORY}/invalid/plugins/broken.dll" "not a DLL")
+check(invalid "identity(7)\n" "7\n" 0 "Warning:")
+foreach(reason IN ITEMS "no_entry.dll.*Missing calc_plugin_get_api" "bad_metadata.dll.*Incompatible plugin ABI" "broken.dll.*Cannot load DLL")
+    if(NOT last_errors MATCHES "${reason}")
+        message(FATAL_ERROR "Missing DLL validation diagnostic [${reason}]: ${last_errors}")
+    endif()
+endforeach()
+
+prepare(duplicate)
+add_plugin(duplicate "${IDENTITY_DLL}" "a.dll")
+add_plugin(duplicate "${IDENTITY_DLL}" "b.dll")
+check(duplicate "identity(8)\n" "8\n" 0 "Duplicate operation")
+
+prepare(errors)
+add_plugin(errors "${PROBE_DLL}" "test.dll")
+check(errors "probe(-1)\nprobe(-4)\nprobe(-5)\nprobe(4)\n" "16\n" 1 "Error:.*probe")

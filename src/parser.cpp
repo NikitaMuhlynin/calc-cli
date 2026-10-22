@@ -13,8 +13,10 @@ namespace
 
 struct PendingOperator
 {
-    char        symbol;
-    std::size_t position;
+    Instruction item;
+    uint32_t    precedence        = 0; // Zero marks a grouping or function parenthesis.
+    bool        right_associative = false;
+    uint32_t    separators        = 0;
 };
 
 [[noreturn]] void syntax_error(const char* message, std::size_t position)
@@ -28,39 +30,20 @@ bool is_digit(char character)
     return character >= '0' && character <= '9';
 }
 
-int precedence(char symbol)
+PendingOperator builtin(char symbol, std::size_t position)
 {
     switch (symbol)
     {
-    case '~':
-        return 3;
-    case '*':
-    case '/':
-        return 2;
     case '+':
+        return {{Operation::add, 0.0, position}, 1};
     case '-':
-        return 1;
-    default:
-        return 0;
-    }
-}
-
-Instruction instruction(PendingOperator pending)
-{
-    switch (pending.symbol)
-    {
-    case '+':
-        return {Operation::add, 0.0, pending.position};
-    case '-':
-        return {Operation::subtract, 0.0, pending.position};
+        return {{Operation::subtract, 0.0, position}, 1};
     case '*':
-        return {Operation::multiply, 0.0, pending.position};
+        return {{Operation::multiply, 0.0, position}, 2};
     case '/':
-        return {Operation::divide, 0.0, pending.position};
-    case '~':
-        return {Operation::negate, 0.0, pending.position};
+        return {{Operation::divide, 0.0, position}, 2};
     default:
-        syntax_error("Unclosed parenthesis", pending.position);
+        syntax_error("Unknown operator", position);
     }
 }
 
@@ -121,15 +104,20 @@ Instruction read_number(std::string_view input, std::size_t& position)
 
 } // namespace
 
-Expression parse(std::string_view input)
+Expression parse(std::string_view input, const PluginRegistry& plugins)
 {
     Expression                   output;
     std::vector<PendingOperator> operators;
     bool                         expect_operand = true;
     std::size_t                  position       = 0;
 
-    // Iterative shunting-yard parsing avoids recursion for nested parentheses
-    // and long chains of unary operators.
+    const auto emit_operator = [&]()
+    {
+        output.push_back(operators.back().item);
+        operators.pop_back();
+    };
+
+    // Iterative shunting-yard parsing includes function frames and dynamic operators.
     while (position < input.size())
     {
         const char symbol = input[position];
@@ -148,13 +136,46 @@ Expression parse(std::string_view input)
             expect_operand = false;
             continue;
         }
-        if (symbol == '(')
+        if ((symbol >= 'a' && symbol <= 'z') || (symbol >= 'A' && symbol <= 'Z') || symbol == '_')
+        {
+            if (!expect_operand)
+            {
+                syntax_error("Expected an operator", position);
+            }
+            const auto start = position++;
+            while (position < input.size())
+            {
+                const char character = input[position];
+                if (!is_digit(character) && !(character >= 'a' && character <= 'z') &&
+                    !(character >= 'A' && character <= 'Z') && character != '_')
+                {
+                    break;
+                }
+                ++position;
+            }
+            const auto function = plugins.find(input.substr(start, position - start));
+            if (!function || function->api.kind != CALC_PLUGIN_FUNCTION)
+            {
+                syntax_error("Unknown function", start);
+            }
+            while (position < input.size() &&
+                   std::isspace(static_cast<unsigned char>(input[position])))
+            {
+                ++position;
+            }
+            if (position == input.size() || input[position] != '(')
+            {
+                syntax_error("Expected function parentheses", position);
+            }
+            operators.push_back({{Operation::plugin_call, 0.0, start, function}});
+        }
+        else if (symbol == '(')
         {
             if (!expect_operand)
             {
                 syntax_error("Expected an operator before parenthesis", position);
             }
-            operators.push_back({symbol, position});
+            operators.push_back({{Operation::number, 0.0, position}});
         }
         else if (symbol == ')')
         {
@@ -162,24 +183,52 @@ Expression parse(std::string_view input)
             {
                 syntax_error("Expected an operand", position);
             }
-            while (!operators.empty() && operators.back().symbol != '(')
+            while (!operators.empty() && operators.back().precedence != 0)
             {
-                output.push_back(instruction(operators.back()));
-                operators.pop_back();
+                emit_operator();
             }
             if (operators.empty())
             {
                 syntax_error("Unmatched closing parenthesis", position);
             }
+            const auto frame = operators.back();
             operators.pop_back();
+            if (frame.item.plugin)
+            {
+                if (frame.separators + 1 != frame.item.plugin->api.argument_count)
+                {
+                    syntax_error("Incorrect function argument count", frame.item.position);
+                }
+                output.push_back(frame.item);
+            }
         }
-        else if (symbol == '+' || symbol == '-' || symbol == '*' || symbol == '/')
+        else if (symbol == ',')
+        {
+            if (expect_operand)
+            {
+                syntax_error("Expected an argument", position);
+            }
+            while (!operators.empty() && operators.back().precedence != 0)
+            {
+                emit_operator();
+            }
+            if (operators.empty() || !operators.back().item.plugin)
+            {
+                syntax_error("Unexpected argument separator", position);
+            }
+            if (++operators.back().separators >= operators.back().item.plugin->api.argument_count)
+            {
+                syntax_error("Too many function arguments", position);
+            }
+            expect_operand = true;
+        }
+        else
         {
             if (expect_operand)
             {
                 if (symbol == '-')
                 {
-                    operators.push_back({'~', position});
+                    operators.push_back({{Operation::negate, 0.0, position}, 3, true});
                 }
                 else if (symbol != '+')
                 {
@@ -188,19 +237,32 @@ Expression parse(std::string_view input)
             }
             else
             {
-                while (!operators.empty() && operators.back().symbol != '(' &&
-                       precedence(operators.back().symbol) >= precedence(symbol))
+                PendingOperator current{};
+                if (symbol == '+' || symbol == '-' || symbol == '*' || symbol == '/')
                 {
-                    output.push_back(instruction(operators.back()));
-                    operators.pop_back();
+                    current = builtin(symbol, position);
                 }
-                operators.push_back({symbol, position});
+                else
+                {
+                    const auto operation = plugins.find(input.substr(position, 1));
+                    if (!operation || operation->api.kind != CALC_PLUGIN_INFIX)
+                    {
+                        syntax_error("Unexpected character", position);
+                    }
+                    current = {{Operation::plugin_call, 0.0, position, operation},
+                               operation->api.precedence,
+                               operation->api.associativity == CALC_PLUGIN_ASSOC_RIGHT};
+                }
+                while (!operators.empty() && operators.back().precedence != 0 &&
+                       (operators.back().precedence > current.precedence ||
+                        (operators.back().precedence == current.precedence &&
+                         !current.right_associative)))
+                {
+                    emit_operator();
+                }
+                operators.push_back(current);
                 expect_operand = true;
             }
-        }
-        else
-        {
-            syntax_error("Unexpected character", position);
         }
         ++position;
     }
@@ -211,8 +273,11 @@ Expression parse(std::string_view input)
     }
     while (!operators.empty())
     {
-        output.push_back(instruction(operators.back()));
-        operators.pop_back();
+        if (operators.back().precedence == 0)
+        {
+            syntax_error("Unclosed parenthesis", operators.back().item.position);
+        }
+        emit_operator();
     }
     return output;
 }

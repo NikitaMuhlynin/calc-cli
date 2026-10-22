@@ -1,4 +1,5 @@
 #include "evaluator.h"
+#include "plugin_registry.h"
 
 #include <cmath>
 #include <stdexcept>
@@ -24,6 +25,19 @@ double evaluate(const Expression& expression)
             continue;
         }
 
+        if (item.operation == Operation::plugin_call)
+        {
+            if (!item.plugin || values.size() < item.plugin->api.argument_count)
+            {
+                throw std::invalid_argument("Invalid plugin instruction");
+            }
+            const auto   offset = values.size() - item.plugin->api.argument_count;
+            const double result =
+                item.plugin->evaluate(values.data() + offset, item.plugin->api.argument_count);
+            values.resize(offset);
+            values.push_back(result);
+            continue;
+        }
         const std::size_t operand_count = item.operation == Operation::negate ? 1 : 2;
         if (values.size() < operand_count)
         {
