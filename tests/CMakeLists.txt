@@ -9,7 +9,7 @@ add_test(NAME calc.build_layout
 
 set_tests_properties(calc.startup calc.build_layout PROPERTIES TIMEOUT 10)
 
-foreach(suite IN ITEMS arithmetic invalid console)
+foreach(suite IN ITEMS arithmetic invalid console math)
     add_test(NAME calc.${suite}
         COMMAND "${CMAKE_COMMAND}"
             "-DCALC_EXECUTABLE=$<TARGET_FILE:calc>"
@@ -76,3 +76,19 @@ add_test(NAME calc.plugin_lifetime
     COMMAND plugin_lifetime_tests $<TARGET_FILE_DIR:plugin_stub>
 )
 set_tests_properties(calc.plugin_lifetime PROPERTIES TIMEOUT 10)
+
+add_executable(math_plugins_tests math_plugins_tests.cpp)
+target_link_libraries(math_plugins_tests PRIVATE calc_core)
+add_dependencies(math_plugins_tests funcsin funcdeg)
+add_test(NAME calc.math_precision COMMAND math_plugins_tests $<TARGET_FILE_DIR:funcsin>)
+set_tests_properties(calc.math_precision PROPERTIES TIMEOUT 10)
+
+add_test(NAME calc.plugins_without_rebuild
+    COMMAND "${CMAKE_COMMAND}"
+        "-DCALC_EXECUTABLE=$<TARGET_FILE:calc>"
+        "-DSINE_DLL=$<TARGET_FILE:funcsin>"
+        "-DPOWER_DLL=$<TARGET_FILE:funcdeg>"
+        "-DWORK_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/without_rebuild"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/check_plugins_without_rebuild.cmake"
+)
+set_tests_properties(calc.plugins_without_rebuild PROPERTIES TIMEOUT 10)
