@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cwctype>
+#include <limits>
 #include <ostream>
 #include <stdexcept>
 #include <system_error>
@@ -16,6 +17,29 @@
 
 namespace calc
 {
+namespace
+{
+
+std::string status_description(CalcPluginStatus status)
+{
+    switch (status)
+    {
+    case CALC_PLUGIN_INVALID_ARGUMENT:
+        return "Invalid plugin arguments";
+    case CALC_PLUGIN_DOMAIN_ERROR:
+        return "Domain error";
+    case CALC_PLUGIN_NUMERIC_ERROR:
+        return "Numeric error";
+    case CALC_PLUGIN_INTERNAL_ERROR:
+        return "Internal plugin error";
+    case CALC_PLUGIN_INCOMPATIBLE_ABI:
+        return "Incompatible plugin ABI";
+    default:
+        return "Unknown plugin status " + std::to_string(status);
+    }
+}
+
+} // namespace
 
 double PluginOperation::evaluate(const double* arguments, uint32_t count) const
 {
@@ -24,13 +48,14 @@ double PluginOperation::evaluate(const double* arguments, uint32_t count) const
         throw std::invalid_argument("Invalid plugin argument count");
     }
     char       error[512]{};
-    double     result        = 0.0;
+    double     result        = std::numeric_limits<double>::quiet_NaN();
     const auto status        = api.invoke(arguments, count, &result, error, sizeof(error));
     error[sizeof(error) - 1] = '\0';
     if (status != CALC_PLUGIN_OK)
     {
         throw std::runtime_error("Plugin '" + std::string(api.name) + "' (status " +
-                                 std::to_string(status) + "): " + error);
+                                 std::to_string(status) + "): " + status_description(status) +
+                                 (error[0] != '\0' ? ": " + std::string(error) : ""));
     }
     if (!std::isfinite(result))
     {

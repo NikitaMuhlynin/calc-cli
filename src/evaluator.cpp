@@ -31,9 +31,18 @@ double evaluate(const Expression& expression)
             {
                 throw std::invalid_argument("Invalid plugin instruction");
             }
-            const auto   offset = values.size() - item.plugin->api.argument_count;
-            const double result =
-                item.plugin->evaluate(values.data() + offset, item.plugin->api.argument_count);
+            const auto offset = values.size() - item.plugin->api.argument_count;
+            double     result = 0.0;
+            try
+            {
+                result =
+                    item.plugin->evaluate(values.data() + offset, item.plugin->api.argument_count);
+            }
+            catch (const std::exception& error)
+            {
+                throw std::runtime_error(std::string(error.what()) + " at position " +
+                                         std::to_string(item.position + 1));
+            }
             values.resize(offset);
             values.push_back(result);
             continue;

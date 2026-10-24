@@ -44,7 +44,7 @@ add_library(plugin_api_c_check OBJECT plugin_api_c_check.c)
 target_link_libraries(plugin_api_c_check PRIVATE calc_plugin_api)
 set_target_properties(plugin_api_c_check PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON)
 
-foreach(fixture IN ITEMS difference pair no_entry bad_metadata)
+foreach(fixture IN ITEMS difference pair no_entry bad_metadata unreliable refused)
     add_library(plugin_${fixture} MODULE fixtures/plugin_${fixture}.cpp)
     target_link_libraries(plugin_${fixture} PRIVATE calc_plugin_api)
     target_compile_definitions(plugin_${fixture} PRIVATE CALC_PLUGIN_BUILD)
@@ -64,6 +64,8 @@ add_test(NAME calc.plugin_loading
         "-DPAIR_DLL=$<TARGET_FILE:plugin_pair>"
         "-DNO_ENTRY_DLL=$<TARGET_FILE:plugin_no_entry>"
         "-DBAD_METADATA_DLL=$<TARGET_FILE:plugin_bad_metadata>"
+        "-DUNRELIABLE_DLL=$<TARGET_FILE:plugin_unreliable>"
+        "-DREFUSED_DLL=$<TARGET_FILE:plugin_refused>"
         "-DWORK_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/loading"
         -P "${CMAKE_CURRENT_SOURCE_DIR}/check_plugin_loading.cmake"
 )
@@ -71,9 +73,11 @@ set_tests_properties(calc.plugin_loading PROPERTIES TIMEOUT 30)
 
 add_executable(plugin_lifetime_tests plugin_lifetime_tests.cpp)
 target_link_libraries(plugin_lifetime_tests PRIVATE calc_core)
-add_dependencies(plugin_lifetime_tests plugin_stub)
+add_dependencies(plugin_lifetime_tests plugin_stub plugin_no_entry plugin_bad_metadata plugin_refused)
 add_test(NAME calc.plugin_lifetime
-    COMMAND plugin_lifetime_tests $<TARGET_FILE_DIR:plugin_stub>
+    COMMAND plugin_lifetime_tests $<TARGET_FILE:plugin_stub>
+        "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/resources"
+        $<TARGET_FILE:plugin_no_entry> $<TARGET_FILE:plugin_bad_metadata> $<TARGET_FILE:plugin_refused>
 )
 set_tests_properties(calc.plugin_lifetime PROPERTIES TIMEOUT 10)
 
