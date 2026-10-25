@@ -130,6 +130,44 @@ CMake-цель DLL связывается с `calc_plugin_api` и получае
 `cmake --build --preset debug --target target`, затем положить её в `plugins`
 рядом с `calc.exe` и перезапустить приложение.
 
+Например, чтобы добавить `square(3) = 9`:
+
+1. Создайте `plugins/square.cpp`:
+
+```cpp
+#include <calc/plugin_sdk.h>
+
+namespace
+{
+double square(const double* arguments, uint32_t)
+{
+    return arguments[0] * arguments[0];
+}
+
+constexpr auto square_api = calc::plugin::function<1, square>("square");
+} // namespace
+
+extern "C" CALC_PLUGIN_EXPORT CalcPluginStatus CALC_PLUGIN_CALL calc_plugin_get_api(
+    uint32_t version, uint32_t size, CalcPluginApi* output) noexcept
+{
+    return calc::plugin::publish(square_api, version, size, output);
+}
+```
+
+2. Добавьте в `plugins/CMakeLists.txt` строку
+   `add_calc_plugin(funcsquare square.cpp)`.
+3. Выполните из корня проекта:
+
+```powershell
+cmake --preset windows-msvc
+cmake --build --preset debug --target funcsquare
+'square(3)' | .\build\windows-msvc\bin\Debug\calc.exe
+```
+
+Последняя команда выведет `9`. Сборка цели `funcsquare` создаёт только DLL;
+`calc.exe` должен быть предварительно собран обычной командой сборки.
+Если калькулятор уже открыт, перезапустите его после добавления DLL.
+
 При запуске хост сканирует `plugins` рядом с исполняемым файлом и загружает
 DLL через `LoadLibraryExW`. Непригодные DLL пропускаются с предупреждением.
 Функции и бинарные операторы подключаются к разбору по метаданным, включая
