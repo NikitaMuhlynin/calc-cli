@@ -21,7 +21,12 @@ include(GoogleTest)
 gtest_discover_tests(calc_tests TEST_PREFIX unit. DISCOVERY_MODE PRE_TEST
     PROPERTIES TIMEOUT 10 LABELS unit)
 
-add_test(NAME calc.startup COMMAND $<TARGET_FILE:calc>)
+add_test(NAME calc.startup
+    COMMAND "${CMAKE_COMMAND}"
+        "-DCALC_EXECUTABLE=$<TARGET_FILE:calc>"
+        "-DWORK_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/startup"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/check_startup.cmake"
+)
 
 add_test(NAME calc.build_layout
     COMMAND "${CMAKE_COMMAND}"
