@@ -1,0 +1,3 @@
+Checks: '-*,clang-analyzer-*,bugprone-std-exception-baseclass'
+WarningsAsErrors: '*'
+HeaderFilterRegex: '(^|[/\\])(src|include[/\\]calc|plugins|tests)[/\\]'
