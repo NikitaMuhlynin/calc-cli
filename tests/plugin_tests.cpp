@@ -50,7 +50,12 @@ TEST_F(Plugins, EvaluatesDegreeSineAndRightAssociativePower)
                           {"sin(360000030)", 0.5},
                           {"2^0.5", 1.4142135623730951},
                           {"4^-0.5", 0.5},
-                          {"2^sin(90)+sin(30)", 2.5}};
+                          {"2^sin(90)+sin(30)", 2.5},
+                          {"sin(sin(90)*90)", 1},
+                          {"2^-sin(90)", 0.5},
+                          {"-(sin(90)+1)^2", -4},
+                          {"2^(-2)^2", 16},
+                          {"sin(-(-90))", 1}};
     for (const auto& item : cases)
     {
         SCOPED_TRACE(item.expression);

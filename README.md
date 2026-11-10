@@ -166,6 +166,33 @@ cmake --build build/no-tests --config Release
 
 Создание своей функции описано пошагово в [инструкции плагинов](docs/plugin-api.md).
 
+## Статический анализ
+
+Для проверки нужны cppcheck, clang-tidy и Ninja в `PATH`. Отдельную сборку
+для анализа настройте из Developer PowerShell for VS 2022, чтобы были доступны
+заголовки MSVC и Windows SDK:
+
+```powershell
+cmake -S . -B build/lint -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+cmake --build build/lint --target lint-cppcheck lint-clang-tidy
+```
+
+Пути к анализаторам при необходимости задаются параметрами
+`-DCALC_CPPCHECK_EXECUTABLE=...` и `-DCALC_CLANG_TIDY_EXECUTABLE=...`.
+Обычная сборка не требует установки анализаторов. Для clang-tidy используется
+`compile_commands.json`; генератор Visual Studio этот файл не создаёт.
+Сторонние исходники GoogleTest в цель clang-tidy не включаются.
+
+Цель cppcheck загружает штатную модель `--library=googletest`, чтобы правильно
+разбирать `TEST`, `TEST_F` и проверки исключений. Без неё cppcheck может сообщать
+ложные `syntaxError` в тестах. Единственное исключение для проверки конструкторов —
+`CalcPluginApi` в C-совместимом ABI: этот тип также компилируется как C11, а
+вызывающий код обнуляет его через `{}` перед использованием.
+
+Два намеренных `throw 42` в тестах сохраняют проверку обработки нестандартных
+исключений внутри SDK. Для этих строк указан точечный `NOLINT` с пояснением;
+остальные проверки исключений clang-tidy остаются включены.
+
 Стиль задаётся в `.clang-format` (clang-format 19): отступ в четыре пробела,
 все открывающие скобки блоков — с новой строки (Allman), включая функции,
 классы, пространства имён, условия, циклы, лямбды и блоки `try`/`catch`.

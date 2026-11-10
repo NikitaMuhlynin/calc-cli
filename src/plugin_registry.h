@@ -14,7 +14,7 @@ namespace calc
 
 struct PluginOperation
 {
-    CalcPluginApi         api;
+    CalcPluginApi         api{};
     std::shared_ptr<void> library;
 
     double evaluate(const double* arguments, uint32_t count) const;

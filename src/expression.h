@@ -22,10 +22,10 @@ enum class Operation
 
 struct Instruction
 {
-    Operation                              operation;
-    double                                 value;
-    std::size_t                            position;
-    std::shared_ptr<const PluginOperation> plugin = {};
+    Operation                              operation = Operation::number;
+    double                                 value     = 0.0;
+    std::size_t                            position  = 0;
+    std::shared_ptr<const PluginOperation> plugin    = {};
 };
 
 // Reverse Polish notation: each operator follows its operands.

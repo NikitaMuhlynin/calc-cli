@@ -24,7 +24,8 @@ double probe(const double* arguments, uint32_t)
     }
     if (value == -4)
     {
-        throw 42;
+        // Exercise the SDK catch-all handler across a real DLL boundary.
+        throw 42; // NOLINT(bugprone-std-exception-baseclass)
     }
     if (value == -5)
     {

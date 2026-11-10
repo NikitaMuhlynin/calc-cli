@@ -6,8 +6,10 @@
 
 namespace calc::plugin
 {
+namespace detail
+{
 
-inline const char* validation_error(const CalcPluginApi& api) noexcept
+inline const char* common_validation_error(const CalcPluginApi& api) noexcept
 {
     if (api.abi_version != CALC_PLUGIN_ABI_VERSION || api.struct_size != sizeof(CalcPluginApi))
     {
@@ -22,41 +24,78 @@ inline const char* validation_error(const CalcPluginApi& api) noexcept
     {
         return "Missing or unterminated operation name";
     }
-    if (api.kind == CALC_PLUGIN_FUNCTION)
+    return nullptr;
+}
+
+inline bool is_identifier_start(char character) noexcept
+{
+    return (character >= 'a' && character <= 'z') || (character >= 'A' && character <= 'Z') ||
+           character == '_';
+}
+
+inline bool valid_function_identifier(const char* name) noexcept
+{
+    if (!is_identifier_start(name[0]))
     {
-        if (api.precedence != 0 || api.associativity != CALC_PLUGIN_ASSOC_NONE)
+        return false;
+    }
+    for (uint32_t index = 1; name[index] != '\0'; ++index)
+    {
+        const char character = name[index];
+        const bool digit     = character >= '0' && character <= '9';
+        if (!is_identifier_start(character) && !digit)
         {
-            return "Named functions have no precedence or associativity";
-        }
-        for (uint32_t index = 0; api.name[index] != '\0'; ++index)
-        {
-            const char character = api.name[index];
-            const bool letter    = (character >= 'a' && character <= 'z') ||
-                                (character >= 'A' && character <= 'Z') || character == '_';
-            if (!letter && !(index != 0 && character >= '0' && character <= '9'))
-            {
-                return "Invalid function identifier";
-            }
+            return false;
         }
     }
-    else if (api.kind == CALC_PLUGIN_INFIX)
+    return true;
+}
+
+inline const char* function_validation_error(const CalcPluginApi& api) noexcept
+{
+    if (api.precedence != 0 || api.associativity != CALC_PLUGIN_ASSOC_NONE)
     {
-        if (api.name[1] != '\0' || std::strchr("^%&|~!@?:", api.name[0]) == nullptr)
-        {
-            return "Invalid or reserved operator symbol";
-        }
-        if (api.argument_count != 2 || api.precedence == 0 || api.precedence > 100 ||
-            (api.associativity != CALC_PLUGIN_ASSOC_LEFT &&
-             api.associativity != CALC_PLUGIN_ASSOC_RIGHT))
-        {
-            return "Invalid binary operator parsing rules";
-        }
+        return "Named functions have no precedence or associativity";
     }
-    else
+    if (!valid_function_identifier(api.name))
     {
-        return "Unknown operation kind";
+        return "Invalid function identifier";
     }
     return nullptr;
+}
+
+inline const char* infix_validation_error(const CalcPluginApi& api) noexcept
+{
+    if (api.name[1] != '\0' || std::strchr("^%&|~!@?:", api.name[0]) == nullptr)
+    {
+        return "Invalid or reserved operator symbol";
+    }
+    if (api.argument_count != 2 || api.precedence == 0 || api.precedence > 100 ||
+        (api.associativity != CALC_PLUGIN_ASSOC_LEFT &&
+         api.associativity != CALC_PLUGIN_ASSOC_RIGHT))
+    {
+        return "Invalid binary operator parsing rules";
+    }
+    return nullptr;
+}
+
+} // namespace detail
+
+inline const char* validation_error(const CalcPluginApi& api) noexcept
+{
+    if (const auto error = detail::common_validation_error(api))
+    {
+        return error;
+    }
+    switch (api.kind)
+    {
+    case CALC_PLUGIN_FUNCTION:
+        return detail::function_validation_error(api);
+    case CALC_PLUGIN_INFIX:
+        return detail::infix_validation_error(api);
+    default:
+        return "Unknown operation kind";
+    }
 }
 
 } // namespace calc::plugin

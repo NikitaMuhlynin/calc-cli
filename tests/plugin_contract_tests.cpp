@@ -21,7 +21,8 @@ double failing(const double* arguments, uint32_t)
     }
     if (arguments[0] == -2)
     {
-        throw 42;
+        // Exercise the SDK catch-all handler for a non-standard exception.
+        throw 42; // NOLINT(bugprone-std-exception-baseclass)
     }
     return std::numeric_limits<double>::infinity();
 }

@@ -16,6 +16,8 @@ TEST(Arithmetic, EvaluatesNumbersAndWhitespace)
     EXPECT_DOUBLE_EQ(calc::evaluate(calc::parse(" \t1.5 + .5\t")), 2.0);
     EXPECT_DOUBLE_EQ(calc::evaluate(calc::parse("5./2")), 2.5);
     EXPECT_DOUBLE_EQ(calc::evaluate(calc::parse("1e2+2.5E-1*4")), 101.0);
+    EXPECT_DOUBLE_EQ(calc::evaluate(calc::parse("-.5e+2")), -50.0);
+    EXPECT_DOUBLE_EQ(calc::evaluate(calc::parse("5.e-1")), 0.5);
 }
 
 TEST(Arithmetic, RespectsPrecedenceParenthesesAndUnarySigns)
@@ -45,8 +47,9 @@ TEST(Arithmetic, RespectsPrecedenceParenthesesAndUnarySigns)
 
 TEST(Parser, RejectsMalformedExpressions)
 {
-    for (const char* expression : {"", "1+", "*2", "()", "(1+2", "1+2)", "2(3)", "1 2", "1..2", ".",
-                                   "1e+", "unknown(1)", "1,5", "1e309"})
+    for (const char* expression :
+         {"", "1+", "*2", "()", "(1+2", "1+2)", "2(3)", "1 2", "1..2", ".", "1e+", "1e", "1e-",
+          ".e2", "1e2.3", "unknown(1)", "1,5", "1e309"})
     {
         SCOPED_TRACE(expression);
         EXPECT_THROW(calc::parse(expression), std::invalid_argument);
